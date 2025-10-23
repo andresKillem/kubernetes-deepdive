@@ -1,3 +1,36 @@
-# Add Helm charts
+apiVersion: v2
+name: webapp
+description: A Helm chart for deploying a web application on Kubernetes
+type: application
+version: 1.0.0
+appVersion: "1.0"
 
-Content added on 2024-10-21 09:45:00
+keywords:
+  - web
+  - application
+  - deployment
+
+home: https://github.com/yourorg/webapp
+sources:
+  - https://github.com/yourorg/webapp
+
+maintainers:
+  - name: Platform Team
+    email: platform@example.com
+    url: https://example.com
+
+# Dependencies (if any)
+# dependencies:
+#   - name: postgresql
+#     version: 12.x.x
+#     repository: https://charts.bitnami.com/bitnami
+#     condition: postgresql.enabled
+#   - name: redis
+#     version: 17.x.x
+#     repository: https://charts.bitnami.com/bitnami
+#     condition: redis.enabled
+
+# Annotations
+annotations:
+  category: WebApplication
+  licenses: Apache-2.0

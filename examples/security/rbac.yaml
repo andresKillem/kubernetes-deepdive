@@ -1,3 +1,241 @@
-# Add RBAC examples
+# RBAC (Role-Based Access Control) Examples for Kubernetes
 
-Content added on 2024-10-19 12:00:00
+---
+# ServiceAccount for a specific application
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: webapp-sa
+  namespace: production
+
+---
+# Role: Grants permissions within a namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: production
+rules:
+- apiGroups: [""]  # "" indicates the core API group
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+
+---
+# RoleBinding: Binds Role to ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-pods
+  namespace: production
+subjects:
+- kind: ServiceAccount
+  name: webapp-sa
+  namespace: production
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ClusterRole: Cluster-wide permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: secret-reader
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "watch", "list"]
+
+---
+# ClusterRoleBinding: Binds ClusterRole cluster-wide
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: read-secrets-global
+subjects:
+- kind: Group
+  name: manager  # Note the RBAC API Group is "rbac.authorization.k8s.io"
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: secret-reader
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Example: Developer Role (full access to deployments, services, pods)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: developer
+  namespace: development
+rules:
+- apiGroups: ["", "apps", "extensions"]
+  resources: ["deployments", "replicasets", "pods", "services", "configmaps"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create"]
+
+---
+# Example: Read-only User Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: readonly-user
+  namespace: production
+rules:
+- apiGroups: ["", "apps", "extensions"]
+  resources: ["deployments", "replicasets", "pods", "services", "configmaps", "endpoints"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get", "list"]
+
+---
+# Example: CI/CD ServiceAccount for deployments
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ci-cd-deployer
+  namespace: production
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployment-manager
+  namespace: production
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "create", "update"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ci-cd-deployment-binding
+  namespace: production
+subjects:
+- kind: ServiceAccount
+  name: ci-cd-deployer
+  namespace: production
+roleRef:
+  kind: Role
+  name: deployment-manager
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Example: Monitoring ServiceAccount (read-only cluster-wide)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitoring-sa
+  namespace: monitoring
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: monitoring-reader
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "nodes/stats", "services", "endpoints", "pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: monitoring-reader-binding
+subjects:
+- kind: ServiceAccount
+  name: monitoring-sa
+  namespace: monitoring
+roleRef:
+  kind: ClusterRole
+  name: monitoring-reader
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Example: Pod with ServiceAccount
+apiVersion: v1
+kind: Pod
+metadata:
+  name: webapp-pod
+  namespace: production
+spec:
+  serviceAccountName: webapp-sa  # Uses the ServiceAccount
+  containers:
+  - name: webapp
+    image: myapp:1.0
+    # This pod can now access Kubernetes API with webapp-sa permissions
+
+---
+# Example: Restricting namespace-specific access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: namespace-admin
+  namespace: team-a
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: team-a-admin-binding
+  namespace: team-a
+subjects:
+- kind: User
+  name: alice@example.com
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: namespace-admin
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Security Best Practices Example
+# Minimal permissions for application
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secure-app-sa
+  namespace: production
+automountServiceAccountToken: false  # Disable auto-mounting if not needed
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: minimal-permissions
+  namespace: production
+rules:
+# Only what the app absolutely needs
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["app-config"]  # Specific resource only
+  verbs: ["get"]
